@@ -306,30 +306,24 @@ export default function WidgetPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 text-slate-900 sm:p-6">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6">
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold">Reserva tu cita</h1>
-          <p className="text-sm text-slate-600">
-            CallosaSalud · Reserva online en pocos pasos.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
-            {[1, 2, 3, 4].map((n) => (
-              <span
-                key={n}
-                className={`rounded-full px-2.5 py-1 ${
-                  step === n
-                    ? "bg-slate-900 text-white"
-                    : step > n
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                Paso {n}
-              </span>
-            ))}
-          </div>
-        </header>
+    <main className="min-h-screen bg-white p-3 text-slate-900 sm:p-4">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white p-4 sm:p-5">
+        <div className="mb-5 flex flex-wrap gap-2 text-xs font-medium">
+          {[1, 2, 3, 4].map((n) => (
+            <span
+              key={n}
+              className={`rounded-full px-2.5 py-1 ${
+                step === n
+                  ? "bg-slate-900 text-white"
+                  : step > n
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              Paso {n}
+            </span>
+          ))}
+        </div>
 
         {error && (
           <div className="mb-4 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-700">
