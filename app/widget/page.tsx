@@ -289,6 +289,17 @@ export default function WidgetPage() {
       return;
     }
 
+    await fetch("/api/notificaciones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "confirmacion",
+        citaId: cita.id,
+      }),
+    }).catch(() => {
+      // No bloquea la reserva si falla WhatsApp.
+    });
+
     setSuccessId(cita.id);
     setSaving(false);
     setStep(5);

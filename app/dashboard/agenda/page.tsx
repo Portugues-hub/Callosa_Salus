@@ -333,21 +333,38 @@ export default function AgendaPage() {
       return;
     }
 
-    const { error: insertCitaError } = await supabase.from("citas").insert({
-      paciente_id: pacienteId,
-      servicio_id: form.servicioId,
-      profesional_id: form.profesionalId,
-      fecha_hora: new Date(selectedDateTime).toISOString(),
-      duracion_min: form.duracion,
-      estado: "pendiente",
-      canal: "web",
-      notas: form.notas.trim() || null,
-    });
+    const { data: citaCreada, error: insertCitaError } = await supabase
+      .from("citas")
+      .insert({
+        paciente_id: pacienteId,
+        servicio_id: form.servicioId,
+        profesional_id: form.profesionalId,
+        fecha_hora: new Date(selectedDateTime).toISOString(),
+        duracion_min: form.duracion,
+        estado: "pendiente",
+        canal: "web",
+        notas: form.notas.trim() || null,
+      })
+      .select("id")
+      .single();
 
-    if (insertCitaError) {
-      setError(insertCitaError.message);
+    if (insertCitaError || !citaCreada) {
+      setError(insertCitaError?.message ?? "No se pudo crear la cita.");
       setSaving(false);
       return;
+    }
+
+    if (form.whatsapp) {
+      await fetch("/api/notificaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "confirmacion",
+          citaId: citaCreada.id,
+        }),
+      }).catch(() => {
+        // No bloquea el alta manual de cita si falla WhatsApp.
+      });
     }
 
     setIsModalOpen(false);

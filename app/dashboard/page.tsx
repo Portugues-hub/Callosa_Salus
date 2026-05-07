@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -68,6 +69,7 @@ function startEndOfToday() {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [citas, setCitas] = useState<CitaHoy[]>([]);
   const [alertas, setAlertas] = useState<ResumenAlertas>({
     sinProfesional: 0,
@@ -144,6 +146,12 @@ export default function DashboardPage() {
     };
   }, [citas]);
 
+  async function handleLogout() {
+    document.cookie = "cs_access_token=; path=/; max-age=0; samesite=lax";
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900 md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -172,6 +180,12 @@ export default function DashboardPage() {
             >
               Agenda semanal
             </Link>
+            <button
+              onClick={() => void handleLogout()}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </header>
 
