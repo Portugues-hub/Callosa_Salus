@@ -31,14 +31,14 @@ export default function EmbedPage() {
 
         <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h2 className="mb-3 text-lg font-semibold">Preview</h2>
-          <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
-            <iframe
-              src="https://callosa-salus-j78jwl6qn-chatbot7.vercel.app/widget"
-              title="Preview widget CallosaSalud"
-              className="block h-[860px] w-full border-0"
-              loading="lazy"
-            />
-          </div>
+          <a
+            href="https://callosa-salus-j78jwl6qn-chatbot7.vercel.app/widget"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Ver widget en nueva pestaña
+          </a>
         </section>
       </div>
     </main>
