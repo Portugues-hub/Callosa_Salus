@@ -154,17 +154,25 @@ export default function DashboardPage() {
               Gestión diaria de citas y alertas de CallosaSalud.
             </p>
           </div>
-          <nav className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-medium">
-            <button className="rounded-lg bg-white px-4 py-2 text-slate-900 shadow-sm">
-              Agenda
-            </button>
-            <button className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900">
-              Alertas
-            </button>
-            <button className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900">
-              Estadísticas
-            </button>
-          </nav>
+          <div className="flex items-center gap-3">
+            <nav className="inline-flex rounded-xl bg-slate-100 p-1 text-sm font-medium">
+              <button className="rounded-lg bg-white px-4 py-2 text-slate-900 shadow-sm">
+                Agenda
+              </button>
+              <button className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900">
+                Alertas
+              </button>
+              <button className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900">
+                Estadísticas
+              </button>
+            </nav>
+            <Link
+              href="/dashboard/agenda"
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Agenda semanal
+            </Link>
+          </div>
         </header>
 
         {!supabaseReady && (
