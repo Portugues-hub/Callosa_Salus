@@ -18,6 +18,24 @@ type CitaDetalle = {
   profesionales: { nombre: string } | null;
 };
 
+type CitaDetalleRow = {
+  id: string;
+  fecha_hora: string;
+  estado: string;
+  notas: string | null;
+  pacientes:
+    | { nombre: string; apellidos: string; telefono: string }
+    | { nombre: string; apellidos: string; telefono: string }[]
+    | null;
+  servicios: { nombre: string } | { nombre: string }[] | null;
+  profesionales: { nombre: string } | { nombre: string }[] | null;
+};
+
+function one<T>(value: T | T[] | null): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
 function getServerSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -57,7 +75,16 @@ async function getCitaDetalle(citaId: string): Promise<CitaDetalle> {
     .single();
 
   if (error || !data) throw new Error(error?.message ?? "No se encontró la cita.");
-  return data as CitaDetalle;
+  const row = data as CitaDetalleRow;
+  return {
+    id: row.id,
+    fecha_hora: row.fecha_hora,
+    estado: row.estado,
+    notas: row.notas,
+    pacientes: one(row.pacientes),
+    servicios: one(row.servicios),
+    profesionales: one(row.profesionales),
+  };
 }
 
 function resumenCita(cita: CitaDetalle): string {
