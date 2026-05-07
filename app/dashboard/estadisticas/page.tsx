@@ -138,8 +138,8 @@ export default function EstadisticasPage() {
         return;
       }
 
-      setCitas((citasRes.data ?? []) as CitaStats[]);
-      setProfesionales((profRes.data ?? []) as Profesional[]);
+      setCitas((citasRes.data ?? []) as unknown as CitaStats[]);
+      setProfesionales((profRes.data ?? []) as unknown as Profesional[]);
       setLoading(false);
     }
 

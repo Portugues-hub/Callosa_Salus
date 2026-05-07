@@ -150,10 +150,10 @@ export default function PacientePage() {
       return;
     }
 
-    setPaciente((pRes.data ?? null) as Paciente | null);
-    setCitas((cRes.data ?? []) as Cita[]);
-    setAlertas((aRes.data ?? []) as AlertaClinica[]);
-    setNotas((nRes.data ?? []) as Nota[]);
+    setPaciente((pRes.data ?? null) as unknown as Paciente | null);
+    setCitas((cRes.data ?? []) as unknown as Cita[]);
+    setAlertas((aRes.data ?? []) as unknown as AlertaClinica[]);
+    setNotas((nRes.data ?? []) as unknown as Nota[]);
     setLoading(false);
   }
 

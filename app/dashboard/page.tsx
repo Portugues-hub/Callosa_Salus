@@ -119,7 +119,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const rows = (data ?? []) as CitaHoy[];
+      const rows = (data ?? []) as unknown as CitaHoy[];
       setCitas(rows);
       setAlertas({
         sinProfesional: rows.filter((c) => !c.profesional_id).length,

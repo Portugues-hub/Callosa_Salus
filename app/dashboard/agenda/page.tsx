@@ -208,9 +208,9 @@ export default function AgendaPage() {
       return;
     }
 
-    setCitas((citasRes.data ?? []) as CitaSemana[]);
-    setServicios((serviciosRes.data ?? []) as Servicio[]);
-    setProfesionales((profesionalesRes.data ?? []) as Profesional[]);
+    setCitas((citasRes.data ?? []) as unknown as CitaSemana[]);
+    setServicios((serviciosRes.data ?? []) as unknown as Servicio[]);
+    setProfesionales((profesionalesRes.data ?? []) as unknown as Profesional[]);
     setLoading(false);
   }
 
