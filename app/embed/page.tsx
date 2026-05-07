@@ -1,4 +1,4 @@
-const embedCode = `<script src="https://callosa-salud.vercel.app/widget.js"></script>
+const embedCode = `<script src="https://callosa-salus-j78jwl6qn-chatbot7.vercel.app/widget.js"></script>
 <div id="callosasalud-widget"></div>`;
 
 export default function EmbedPage() {
@@ -33,7 +33,7 @@ export default function EmbedPage() {
           <h2 className="mb-3 text-lg font-semibold">Preview</h2>
           <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
             <iframe
-              src="https://callosa-salud.vercel.app/widget"
+              src="https://callosa-salus-j78jwl6qn-chatbot7.vercel.app/widget"
               title="Preview widget CallosaSalud"
               className="block h-[860px] w-full border-0"
               loading="lazy"

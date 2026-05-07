@@ -1,6 +1,6 @@
 (function () {
   var WIDGET_ID = "callosasalud-widget";
-  var WIDGET_SRC = "https://callosa-salud.vercel.app/widget";
+  var WIDGET_SRC = "https://callosa-salus-j78jwl6qn-chatbot7.vercel.app/widget";
 
   function mountWidget() {
     var host = document.getElementById(WIDGET_ID);
