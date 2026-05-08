@@ -78,6 +78,7 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingCitaId, setCancellingCitaId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -150,6 +151,26 @@ export default function DashboardPage() {
     document.cookie = "cs_access_token=; path=/; max-age=0; samesite=lax";
     router.push("/login");
     router.refresh();
+  }
+
+  async function handleCancelarCita(cita: CitaHoy) {
+    if (!supabase) return;
+    setCancellingCitaId(cita.id);
+    setError(null);
+
+    const { error: cancelError } = await supabase
+      .from("citas")
+      .update({ estado: "cancelada" })
+      .eq("id", cita.id);
+
+    if (cancelError) {
+      setError(`No se pudo cancelar la cita: ${cancelError.message}`);
+      setCancellingCitaId(null);
+      return;
+    }
+
+    setCitas((prev) => prev.map((c) => (c.id === cita.id ? { ...c, estado: "cancelada" } : c)));
+    setCancellingCitaId(null);
   }
 
   return (
@@ -277,12 +298,23 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3">
-                        <Link
-                          href={`/dashboard/paciente/${cita.paciente_id}`}
-                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-slate-100"
-                        >
-                          Ver ficha
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/dashboard/paciente/${cita.paciente_id}`}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-slate-100"
+                          >
+                            Ver ficha
+                          </Link>
+                          {cita.estado !== "cancelada" && (
+                            <button
+                              onClick={() => void handleCancelarCita(cita)}
+                              disabled={cancellingCitaId === cita.id}
+                              className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                            >
+                              {cancellingCitaId === cita.id ? "Cancelando..." : "Cancelar"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -309,6 +341,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
       </div>
     </main>
   );

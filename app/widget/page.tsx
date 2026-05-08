@@ -220,6 +220,43 @@ export default function WidgetPage() {
     setStep(2);
   }
 
+  async function ensurePaciente(): Promise<string> {
+    if (!supabase) throw new Error("No hay conexión con Supabase.");
+    const normalizedPhone = phone.replace(/\s+/g, " ").trim();
+    const { data: existingPatients, error: patientSearchError } = await supabase
+      .from("pacientes")
+      .select("id")
+      .eq("telefono", normalizedPhone)
+      .limit(1);
+
+    if (patientSearchError) {
+      throw new Error(`Error buscando paciente: ${patientSearchError.message}`);
+    }
+
+    const existingId = existingPatients?.[0]?.id as string | undefined;
+    if (existingId) return existingId;
+
+    const names = splitFullName(fullName);
+    const { data: newPatient, error: patientInsertError } = await supabase
+      .from("pacientes")
+      .insert({
+        nombre: names.nombre || "Paciente",
+        apellidos: names.apellidos || "Sin apellidos",
+        telefono: normalizedPhone,
+        email: email.trim(),
+        canal_preferido: "whatsapp",
+        tipo: "nuevo",
+      })
+      .select("id")
+      .single();
+
+    if (patientInsertError || !newPatient) {
+      throw new Error(patientInsertError?.message ?? "No se pudo crear el paciente.");
+    }
+
+    return newPatient.id;
+  }
+
   async function handleConfirm(e: FormEvent) {
     e.preventDefault();
     if (!supabase || !selectedService || !selectedSlot) return;
@@ -231,41 +268,13 @@ export default function WidgetPage() {
     setSaving(true);
     setError(null);
 
-    const normalizedPhone = phone.replace(/\s+/g, " ").trim();
-    const { data: existingPatients, error: patientSearchError } = await supabase
-      .from("pacientes")
-      .select("id")
-      .eq("telefono", normalizedPhone)
-      .limit(1);
-
-    if (patientSearchError) {
-      setError(`Error buscando paciente: ${patientSearchError.message}`);
+    let pacienteId = "";
+    try {
+      pacienteId = await ensurePaciente();
+    } catch (ensureError) {
+      setError(ensureError instanceof Error ? ensureError.message : "No se pudo preparar paciente.");
       setSaving(false);
       return;
-    }
-
-    let pacienteId = existingPatients?.[0]?.id as string | undefined;
-    if (!pacienteId) {
-      const names = splitFullName(fullName);
-      const { data: newPatient, error: patientInsertError } = await supabase
-        .from("pacientes")
-        .insert({
-          nombre: names.nombre || "Paciente",
-          apellidos: names.apellidos || "Sin apellidos",
-          telefono: normalizedPhone,
-          email: email.trim(),
-          canal_preferido: "whatsapp",
-          tipo: "nuevo",
-        })
-        .select("id")
-        .single();
-
-      if (patientInsertError || !newPatient) {
-        setError(patientInsertError?.message ?? "No se pudo crear el paciente.");
-        setSaving(false);
-        return;
-      }
-      pacienteId = newPatient.id;
     }
 
     const { data: cita, error: citaInsertError } = await supabase
@@ -513,7 +522,6 @@ export default function WidgetPage() {
             </form>
           </section>
         )}
-
         {step === 5 && selectedService && selectedDay && selectedSlot && (
           <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-800">
             <h2 className="text-lg font-semibold">Reserva confirmada</h2>
