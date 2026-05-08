@@ -122,6 +122,7 @@ export default function WidgetPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [mensajeClinica, setMensajeClinica] = useState("");
   const [saving, setSaving] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
 
@@ -287,7 +288,7 @@ export default function WidgetPage() {
         duracion_min: selectedService.duracion_min,
         estado: "pendiente",
         canal: "web",
-        notas: "Reserva desde widget embebido",
+        notas: mensajeClinica.trim() || null,
       })
       .select("id")
       .single();
@@ -297,6 +298,17 @@ export default function WidgetPage() {
       setSaving(false);
       return;
     }
+
+    await supabase
+      .from("notificaciones")
+      .insert({
+        tipo: "nueva_cita",
+        cita_id: cita.id,
+        paciente_id: pacienteId,
+        leida: false,
+      })
+      .then(() => null)
+      .catch(() => null);
 
     await fetch("/api/notificaciones", {
       method: "POST",
@@ -485,6 +497,12 @@ export default function WidgetPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 placeholder="Email"
                 required
+              />
+              <textarea
+                value={mensajeClinica}
+                onChange={(e) => setMensajeClinica(e.target.value)}
+                className="min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2"
+                placeholder="Ej: Tengo dolor lumbar desde hace 3 días, vengo derivado del médico..."
               />
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">

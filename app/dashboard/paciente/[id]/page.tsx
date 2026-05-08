@@ -90,6 +90,14 @@ function alertClass(tipo: string): string {
   return "border-amber-300 bg-amber-50 text-amber-800";
 }
 
+function normalizeWhatsappPhone(phone?: string | null): string {
+  const digits = (phone ?? "").replace(/\s+/g, "").replace(/[^\d+]/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("+")) return digits.slice(1);
+  if (digits.startsWith("34")) return digits;
+  return `34${digits}`;
+}
+
 export default function PacientePage() {
   const params = useParams<{ id: string }>();
   const pacienteId = params.id;
@@ -211,6 +219,24 @@ export default function PacientePage() {
     return top;
   }, [citas]);
 
+  const whatsappHref = useMemo(() => {
+    if (!paciente) return "#";
+    const phone = normalizeWhatsappPhone(paciente.telefono);
+    if (!phone) return "#";
+
+    const citaBase =
+      [...citas]
+        .filter((c) => new Date(c.fecha_hora) >= new Date())
+        .sort((a, b) => +new Date(a.fecha_hora) - +new Date(b.fecha_hora))[0] ?? citas[0];
+
+    const servicio = citaBase?.servicios?.nombre ?? "servicio";
+    const citaDate = citaBase ? new Date(citaBase.fecha_hora) : new Date();
+    const fecha = citaDate.toLocaleDateString("es-ES");
+    const hora = citaDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+    const text = `Hola ${paciente.nombre}, hemos recibido tu cita de ${servicio} el ${fecha} a las ${hora}. En respuesta a tu consulta: `;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  }, [paciente, citas]);
+
   async function handleNuevaNota(e: FormEvent) {
     e.preventDefault();
     if (!supabase || !pacienteId || !nuevaNota.contenido.trim()) return;
@@ -265,14 +291,12 @@ export default function PacientePage() {
 
             <div className="flex flex-wrap gap-2">
               <Link
-                href={
-                  paciente?.telefono
-                    ? `https://wa.me/${paciente.telefono.replace(/\D/g, "")}`
-                    : "#"
-                }
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
               >
-                WhatsApp
+                Contactar por WhatsApp
               </Link>
               <Link
                 href={paciente?.telefono ? `tel:${paciente.telefono}` : "#"}

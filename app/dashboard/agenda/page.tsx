@@ -49,6 +49,8 @@ type Paciente = {
   email: string | null;
 };
 
+type ViewMode = "week" | "month";
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseReady = Boolean(supabaseUrl && supabaseAnonKey);
@@ -73,6 +75,30 @@ function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function getCalendarStartMonday(monthDate: Date): Date {
+  const first = startOfMonth(monthDate);
+  const day = first.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  return addDays(first, diff);
+}
+
+function getCalendarEndSunday(monthDate: Date): Date {
+  const last = endOfMonth(monthDate);
+  const day = last.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  const end = addDays(last, diff);
+  end.setHours(23, 59, 59, 999);
+  return end;
 }
 
 function buildSlots(): string[] {
@@ -114,7 +140,10 @@ function getInitials(nombre?: string, apellidos?: string): string {
 }
 
 export default function AgendaPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday());
+  const [monthCursor, setMonthCursor] = useState<Date>(() => startOfMonth(new Date()));
+  const [selectedMonthDay, setSelectedMonthDay] = useState<Date | null>(null);
   const [citas, setCitas] = useState<CitaSemana[]>([]);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [profesionales, setProfesionales] = useState<Profesional[]>([]);
@@ -149,8 +178,25 @@ export default function AgendaPage() {
     [weekStart]
   );
   const slots = useMemo(() => buildSlots(), []);
+  const monthWeeks = useMemo(() => {
+    const start = getCalendarStartMonday(monthCursor);
+    const end = getCalendarEndSunday(monthCursor);
+    const days: Date[] = [];
+    for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+      days.push(new Date(d));
+    }
+    const weeks: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
+  }, [monthCursor]);
+  const monthLabel = useMemo(
+    () => monthCursor.toLocaleDateString("es-ES", { month: "long", year: "numeric" }),
+    [monthCursor]
+  );
 
-  async function loadWeekData() {
+  async function loadAgendaData(rangeStart: Date, rangeEnd: Date) {
     if (!supabase) {
       setError(
         "Faltan variables de entorno de Supabase (NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY)."
@@ -158,11 +204,6 @@ export default function AgendaPage() {
       setLoading(false);
       return;
     }
-
-    const start = new Date(weekStart);
-    start.setHours(0, 0, 0, 0);
-    const end = addDays(weekStart, 4);
-    end.setHours(23, 59, 59, 999);
 
     setLoading(true);
     setError(null);
@@ -186,8 +227,8 @@ export default function AgendaPage() {
           profesionales(nombre)
         `
         )
-        .gte("fecha_hora", start.toISOString())
-        .lte("fecha_hora", end.toISOString())
+        .gte("fecha_hora", rangeStart.toISOString())
+        .lte("fecha_hora", rangeEnd.toISOString())
         .order("fecha_hora", { ascending: true }),
       supabase.from("servicios").select("*").eq("activo", true).order("nombre"),
       supabase
@@ -215,8 +256,38 @@ export default function AgendaPage() {
   }
 
   useEffect(() => {
-    void loadWeekData();
-  }, [weekStart]);
+    const saved = window.localStorage.getItem("agenda:viewMode");
+    if (saved === "week" || saved === "month") {
+      setViewMode(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("agenda:viewMode", viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "month") return;
+    if (!selectedMonthDay || selectedMonthDay.getMonth() !== monthCursor.getMonth()) {
+      setSelectedMonthDay(new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1));
+    }
+  }, [viewMode, monthCursor, selectedMonthDay]);
+
+  useEffect(() => {
+    if (viewMode === "week") {
+      const start = new Date(weekStart);
+      start.setHours(0, 0, 0, 0);
+      const end = addDays(weekStart, 4);
+      end.setHours(23, 59, 59, 999);
+      void loadAgendaData(start, end);
+      return;
+    }
+
+    const start = getCalendarStartMonday(monthCursor);
+    start.setHours(0, 0, 0, 0);
+    const end = getCalendarEndSunday(monthCursor);
+    void loadAgendaData(start, end);
+  }, [weekStart, monthCursor, viewMode]);
 
   useEffect(() => {
     async function searchPatients() {
@@ -261,6 +332,29 @@ export default function AgendaPage() {
     return map;
   }, [citas]);
 
+  const citasPorDiaMes = useMemo(() => {
+    const map = new Map<string, CitaSemana[]>();
+    for (const cita of citas) {
+      const d = new Date(cita.fecha_hora);
+      const key = d.toISOString().slice(0, 10);
+      const current = map.get(key) ?? [];
+      current.push(cita);
+      map.set(key, current);
+    }
+    for (const [key, arr] of map.entries()) {
+      arr.sort(
+        (a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime()
+      );
+      map.set(key, arr);
+    }
+    return map;
+  }, [citas]);
+
+  const selectedMonthDayAppointments = useMemo(() => {
+    if (!selectedMonthDay) return [];
+    return citasPorDiaMes.get(selectedMonthDay.toISOString().slice(0, 10)) ?? [];
+  }, [selectedMonthDay, citasPorDiaMes]);
+
   const filteredProfesionales = useMemo(() => {
     if (!form.servicioId) return profesionales;
     const servicio = servicios.find((s) => s.id === form.servicioId);
@@ -269,10 +363,13 @@ export default function AgendaPage() {
   }, [form.servicioId, profesionales, servicios]);
 
   function openSlot(dayIndex: number, slot: string) {
-    const [hours, minutes] = slot.split(":").map(Number);
-    const date = new Date(weekDays[dayIndex]);
-    date.setHours(hours, minutes, 0, 0);
+    openSlotForDate(weekDays[dayIndex], slot);
+  }
 
+  function openSlotForDate(baseDate: Date, slot: string) {
+    const [hours, minutes] = slot.split(":").map(Number);
+    const date = new Date(baseDate);
+    date.setHours(hours, minutes, 0, 0);
     setSelectedDateTime(toLocalInputValue(date));
     setSelectedPatient(null);
     setSearch("");
@@ -369,7 +466,19 @@ export default function AgendaPage() {
 
     setIsModalOpen(false);
     setSaving(false);
-    await loadWeekData();
+    if (viewMode === "week") {
+      const start = new Date(weekStart);
+      start.setHours(0, 0, 0, 0);
+      const end = addDays(weekStart, 4);
+      end.setHours(23, 59, 59, 999);
+      await loadAgendaData(start, end);
+      return;
+    }
+
+    const start = getCalendarStartMonday(monthCursor);
+    start.setHours(0, 0, 0, 0);
+    const end = getCalendarEndSunday(monthCursor);
+    await loadAgendaData(start, end);
   }
 
   return (
@@ -378,30 +487,78 @@ export default function AgendaPage() {
         <header className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold">Agenda semanal</h1>
+              <h1 className="text-2xl font-semibold">
+                {viewMode === "week" ? "Agenda semanal" : "Agenda mensual"}
+              </h1>
               <p className="text-sm text-slate-600">
-                Vista de lunes a viernes, de 09:00 a 19:00.
+                {viewMode === "week"
+                  ? "Vista de lunes a viernes, de 09:00 a 19:00."
+                  : "Calendario mensual con detalle diario de citas y huecos."}
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-lg bg-slate-100 p-1 text-sm font-medium">
+                <button
+                  onClick={() => setViewMode("week")}
+                  className={`rounded-md px-3 py-1.5 ${
+                    viewMode === "week" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  }`}
+                >
+                  Semana
+                </button>
+                <button
+                  onClick={() => setViewMode("month")}
+                  className={`rounded-md px-3 py-1.5 ${
+                    viewMode === "month" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  }`}
+                >
+                  Mes
+                </button>
+              </div>
               <Link
                 href="/dashboard"
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
               >
                 Volver al dashboard
               </Link>
-              <button
-                onClick={() => setWeekStart((d) => addDays(d, -7))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
-              >
-                ← Semana anterior
-              </button>
-              <button
-                onClick={() => setWeekStart((d) => addDays(d, 7))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
-              >
-                Semana siguiente →
-              </button>
+              {viewMode === "week" ? (
+                <>
+                  <button
+                    onClick={() => setWeekStart((d) => addDays(d, -7))}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+                  >
+                    ← Semana anterior
+                  </button>
+                  <button
+                    onClick={() => setWeekStart((d) => addDays(d, 7))}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+                  >
+                    Semana siguiente →
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() =>
+                      setMonthCursor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))
+                    }
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+                  >
+                    ← Mes anterior
+                  </button>
+                  <span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium capitalize text-slate-700">
+                    {monthLabel}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setMonthCursor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))
+                    }
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+                  >
+                    Mes siguiente →
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -412,63 +569,170 @@ export default function AgendaPage() {
           </section>
         )}
 
-        <section className="overflow-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-          <div className="min-w-[1000px]">
-            <div className="grid grid-cols-[88px_repeat(5,minmax(0,1fr))] border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-700">
-              <div className="px-3 py-3">Hora</div>
-              {weekDays.map((day, i) => (
-                <div key={i} className="border-l border-slate-200 px-3 py-3">
-                  {dayNames[i]} <span className="text-slate-500">{formatDayHeader(day)}</span>
+        {viewMode === "week" ? (
+          <section className="overflow-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div className="min-w-[1000px]">
+              <div className="grid grid-cols-[88px_repeat(5,minmax(0,1fr))] border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-700">
+                <div className="px-3 py-3">Hora</div>
+                {weekDays.map((day, i) => (
+                  <div key={i} className="border-l border-slate-200 px-3 py-3">
+                    {dayNames[i]} <span className="text-slate-500">{formatDayHeader(day)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {slots.map((slot) => (
+                <div
+                  key={slot}
+                  className="grid grid-cols-[88px_repeat(5,minmax(0,1fr))] border-b border-slate-100 last:border-b-0"
+                  style={{ minHeight: slotHeight }}
+                >
+                  <div className="px-3 py-3 text-xs text-slate-500">{slot}</div>
+                  {weekDays.map((_, dayIndex) => {
+                    const key = `${dayIndex}-${slot}`;
+                    const cita = citasByKey.get(key);
+                    return (
+                      <div key={key} className="group border-l border-slate-100 p-1">
+                        {cita ? (
+                          <div
+                            className={`h-full rounded-lg border p-2 text-xs ${hashColor(
+                              cita.servicio_id
+                            )}`}
+                          >
+                            <p className="font-semibold leading-tight">
+                              {cita.servicios?.nombre ?? "Servicio"}
+                            </p>
+                            <p className="truncate">
+                              {cita.pacientes?.nombre} {cita.pacientes?.apellidos}
+                            </p>
+                            <p className="truncate text-[11px] opacity-80">
+                              {cita.profesionales?.nombre}
+                            </p>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => openSlot(dayIndex, slot)}
+                            className="flex h-full w-full items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-100 hover:text-slate-500"
+                            title="Crear cita"
+                          >
+                            <span className="hidden text-lg font-semibold group-hover:inline">
+                              +
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
+          </section>
+        ) : (
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="overflow-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-medium text-slate-600">
+                {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((name) => (
+                  <div key={name} className="px-2 py-3">
+                    {name}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {monthWeeks.flat().map((day) => {
+                  const key = day.toISOString().slice(0, 10);
+                  const citasDia = citasPorDiaMes.get(key) ?? [];
+                  const inCurrentMonth = day.getMonth() === monthCursor.getMonth();
+                  const isSelected = selectedMonthDay?.toISOString().slice(0, 10) === key;
+                  const dotColor =
+                    citasDia.length >= 5
+                      ? "bg-rose-500"
+                      : citasDia.length >= 3
+                        ? "bg-amber-500"
+                        : "bg-emerald-500";
 
-            {slots.map((slot) => (
-              <div
-                key={slot}
-                className="grid grid-cols-[88px_repeat(5,minmax(0,1fr))] border-b border-slate-100 last:border-b-0"
-                style={{ minHeight: slotHeight }}
-              >
-                <div className="px-3 py-3 text-xs text-slate-500">{slot}</div>
-                {weekDays.map((_, dayIndex) => {
-                  const key = `${dayIndex}-${slot}`;
-                  const cita = citasByKey.get(key);
                   return (
-                    <div key={key} className="group border-l border-slate-100 p-1">
-                      {cita ? (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedMonthDay(day)}
+                      className={`min-h-24 border-b border-r border-slate-100 p-2 text-left transition hover:bg-slate-50 ${
+                        isSelected ? "bg-slate-50" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`text-sm font-medium ${
+                            inCurrentMonth ? "text-slate-800" : "text-slate-400"
+                          }`}
+                        >
+                          {day.getDate()}
+                        </span>
+                        {citasDia.length > 0 && (
+                          <span className={`h-2.5 w-2.5 rounded-full ${dotColor}`} />
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <aside className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+              <h3 className="text-base font-semibold">Detalle del día</h3>
+              {selectedMonthDay ? (
+                <>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {selectedMonthDay.toLocaleDateString("es-ES", {
+                      weekday: "long",
+                      day: "2-digit",
+                      month: "long",
+                    })}
+                  </p>
+                  <div className="mt-4 space-y-2">
+                    {slots.map((slot) => {
+                      const cita = selectedMonthDayAppointments.find((c) => {
+                        const d = new Date(c.fecha_hora);
+                        const hour = String(d.getHours()).padStart(2, "0");
+                        const minutes = d.getMinutes() >= 30 ? "30" : "00";
+                        return `${hour}:${minutes}` === slot;
+                      });
+                      return cita ? (
                         <div
-                          className={`h-full rounded-lg border p-2 text-xs ${hashColor(
+                          key={slot}
+                          className={`rounded-lg border px-3 py-2 text-xs ${hashColor(
                             cita.servicio_id
                           )}`}
                         >
-                          <p className="font-semibold leading-tight">
-                            {cita.servicios?.nombre ?? "Servicio"}
+                          <p className="font-semibold">
+                            {slot} · {cita.servicios?.nombre ?? "Servicio"}
                           </p>
-                          <p className="truncate">
+                          <p>
                             {cita.pacientes?.nombre} {cita.pacientes?.apellidos}
-                          </p>
-                          <p className="truncate text-[11px] opacity-80">
-                            {cita.profesionales?.nombre}
                           </p>
                         </div>
                       ) : (
                         <button
-                          onClick={() => openSlot(dayIndex, slot)}
-                          className="flex h-full w-full items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-100 hover:text-slate-500"
-                          title="Crear cita"
+                          key={slot}
+                          onClick={() => openSlotForDate(selectedMonthDay, slot)}
+                          className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
                         >
-                          <span className="hidden text-lg font-semibold group-hover:inline">
-                            +
-                          </span>
+                          <span>{slot}</span>
+                          <span className="font-semibold text-slate-400">+</span>
                         </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </section>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">
+                  Haz clic en un día del calendario para ver sus citas y huecos.
+                </p>
+              )}
+            </aside>
+          </section>
+        )}
 
         {loading && <p className="text-sm text-slate-500">Cargando agenda...</p>}
       </div>
