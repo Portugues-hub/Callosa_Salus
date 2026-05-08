@@ -169,8 +169,7 @@ export default function EditarPacientePage() {
     [form.nombre, form.apellidos]
   );
 
-  async function handleAddAlerta(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleAddAlerta() {
     if (!supabase || !pacienteId || !nuevaAlerta.descripcion.trim()) return;
 
     setSavingAlerta(true);
@@ -443,7 +442,7 @@ export default function EditarPacientePage() {
               ))}
             </div>
 
-            <form onSubmit={handleAddAlerta} className="rounded-xl border border-slate-200 p-4">
+            <div className="rounded-xl border border-slate-200 p-4">
               <h3 className="mb-3 font-medium">Añadir nueva alerta</h3>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr_auto]">
                 <select
@@ -475,14 +474,15 @@ export default function EditarPacientePage() {
                   required
                 />
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => void handleAddAlerta()}
                   disabled={savingAlerta}
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
                 >
                   {savingAlerta ? "Añadiendo..." : "Añadir"}
                 </button>
               </div>
-            </form>
+            </div>
           </section>
 
           <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
