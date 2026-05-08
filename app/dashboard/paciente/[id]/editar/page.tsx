@@ -20,8 +20,8 @@ type PacienteEditable = {
   recordatorio_whatsapp?: boolean | null;
   recordatorio_email?: boolean | null;
   motivo_principal?: string | null;
-  profesional_referencia?: string | null;
-  observaciones_generales?: string | null;
+  profesional_referencia_id?: string | null;
+  observaciones_clinicas?: string | null;
 };
 
 type Profesional = {
@@ -87,9 +87,9 @@ export default function EditarPacientePage() {
     recordatorioWhatsapp: true,
     recordatorioEmail: false,
     motivoPrincipal: "",
-    profesionalReferencia: "",
+    profesionalReferenciaId: "",
     tipoPaciente: "nuevo" as "nuevo" | "recurrente",
-    observacionesGenerales: "",
+    observacionesClinicas: "",
   });
 
   const [nuevaAlerta, setNuevaAlerta] = useState({
@@ -151,9 +151,9 @@ export default function EditarPacientePage() {
         recordatorioWhatsapp: p.recordatorio_whatsapp ?? true,
         recordatorioEmail: p.recordatorio_email ?? false,
         motivoPrincipal: p.motivo_principal ?? "",
-        profesionalReferencia: p.profesional_referencia ?? "",
+        profesionalReferenciaId: p.profesional_referencia_id ?? "",
         tipoPaciente: p.tipo ?? "nuevo",
-        observacionesGenerales: p.observaciones_generales ?? "",
+        observacionesClinicas: p.observaciones_clinicas ?? "",
       });
 
       setAlertas((alertasRes.data ?? []) as AlertaClinica[]);
@@ -238,9 +238,9 @@ export default function EditarPacientePage() {
       recordatorio_whatsapp: form.recordatorioWhatsapp,
       recordatorio_email: form.recordatorioEmail,
       motivo_principal: form.motivoPrincipal.trim() || null,
-      profesional_referencia: form.profesionalReferencia || null,
+      profesional_referencia_id: form.profesionalReferenciaId || null,
       tipo: form.tipoPaciente,
-      observaciones_generales: form.observacionesGenerales.trim() || null,
+      observaciones_clinicas: form.observacionesClinicas.trim() || null,
     };
 
     const { error: updateError } = await supabase
@@ -497,15 +497,15 @@ export default function EditarPacientePage() {
                 placeholder="Motivo principal"
               />
               <select
-                value={form.profesionalReferencia}
+                value={form.profesionalReferenciaId}
                 onChange={(e) =>
-                  setForm((v) => ({ ...v, profesionalReferencia: e.target.value }))
+                  setForm((v) => ({ ...v, profesionalReferenciaId: e.target.value }))
                 }
                 className="rounded-lg border border-slate-300 px-3 py-2"
               >
                 <option value="">Profesional de referencia</option>
                 {profesionales.map((p) => (
-                  <option key={p.id} value={p.nombre}>
+                  <option key={p.id} value={p.id}>
                     {p.nombre}
                   </option>
                 ))}
@@ -524,12 +524,12 @@ export default function EditarPacientePage() {
                 <option value="recurrente">Recurrente</option>
               </select>
               <textarea
-                value={form.observacionesGenerales}
+                value={form.observacionesClinicas}
                 onChange={(e) =>
-                  setForm((v) => ({ ...v, observacionesGenerales: e.target.value }))
+                  setForm((v) => ({ ...v, observacionesClinicas: e.target.value }))
                 }
                 className="min-h-24 rounded-lg border border-slate-300 px-3 py-2 md:col-span-2"
-                placeholder="Observaciones generales"
+                placeholder="Observaciones clínicas"
               />
             </div>
           </section>

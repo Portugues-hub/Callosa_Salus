@@ -170,9 +170,12 @@ export default function DashboardPage() {
               <button className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900">
                 Alertas
               </button>
-              <button className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900">
+              <Link
+                href="/dashboard/estadisticas"
+                className="rounded-lg px-4 py-2 text-slate-600 hover:text-slate-900"
+              >
                 Estadísticas
-              </button>
+              </Link>
             </nav>
             <Link
               href="/dashboard/agenda"
